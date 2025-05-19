@@ -112,6 +112,13 @@ func Sum[T Number](first *Matrix[T], additional ...*Matrix[T]) *Matrix[T] {
 	return first.Copy().Add(additional...)
 }
 
+// HadamardProduct takes at least one matrix and performs component-wise
+// multiplication of all given matrices. Returns a new matrix with the computed
+// values. Panics if the arguments don't have matching dimensions.
+func HadamardProduct[T Number](first *Matrix[T], additional ...*Matrix[T]) *Matrix[T] {
+	return first.Copy().HadamardMultiply(additional...)
+}
+
 // Copy creates a deep copy of the matrix and returns the new instance
 func (m *Matrix[T]) Copy() *Matrix[T] {
 	mCopy := Create[T](m.rows, m.cols)
@@ -238,5 +245,41 @@ func (m *Matrix[T]) Scale(scalar T) *Matrix[T] {
 			m.values[i][j] *= scalar
 		}
 	}
+	return m
+}
+
+// HadamardMultiply performs an in-place component-wise multiplication of this
+// matrix with zero or more matrices.
+// Ensures correct behavior even if the matrix itself is passed as one or more
+// arguments.
+// Panics with ErrIncompatibleMatrixDimensions if any of the matrices don't
+// have matching dimensions.
+func (m *Matrix[T]) HadamardMultiply(matrices ...*Matrix[T]) *Matrix[T] {
+	numSelf := 0
+	for _, other := range matrices {
+		if m.rows != other.rows || m.cols != other.cols {
+			panic(ErrIncompatibleMatrixDimensions)
+		}
+		if other == m {
+			numSelf += 1
+		}
+	}
+
+	// If we have multiple self references to multiply, work on duplicate data to
+	// make multiplication behave as expected
+	values := m.values
+	if numSelf > 1 {
+		values = m.Copy().values
+	}
+
+	for _, other := range matrices {
+		for i := range m.rows {
+			for j := range m.cols {
+				values[i][j] *= other.values[i][j]
+			}
+		}
+	}
+
+	m.values = values
 	return m
 }

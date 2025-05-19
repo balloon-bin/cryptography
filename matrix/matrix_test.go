@@ -475,3 +475,21 @@ func TestHadamardProduct(t *testing.T) {
 		matrix.HadamardProduct(a, d)
 	})
 }
+
+func TestMatrix_Fill(t *testing.T) {
+	a := matrix.Create[int](2, 3)
+	assert.Equal(t, 0, a.Get(0, 0))
+	assert.Equal(t, 0, a.Get(0, 1))
+	assert.Equal(t, 0, a.Get(0, 2))
+	assert.Equal(t, 0, a.Get(1, 0))
+	assert.Equal(t, 0, a.Get(1, 1))
+	assert.Equal(t, 0, a.Get(1, 2))
+
+	a.Fill(3)
+	assert.Equal(t, 3, a.Get(0, 0))
+	assert.Equal(t, 3, a.Get(0, 1))
+	assert.Equal(t, 3, a.Get(0, 2))
+	assert.Equal(t, 3, a.Get(1, 0))
+	assert.Equal(t, 3, a.Get(1, 1))
+	assert.Equal(t, 3, a.Get(1, 2))
+}

@@ -283,3 +283,13 @@ func (m *Matrix[T]) HadamardMultiply(matrices ...*Matrix[T]) *Matrix[T] {
 	m.values = values
 	return m
 }
+
+// Fill sets all components of this matrix to the given value. Returns the receiver.
+func (m *Matrix[T]) Fill(value T) *Matrix[T] {
+	for i := range m.rows {
+		for j := range m.cols {
+			m.values[i][j] = value
+		}
+	}
+	return m
+}

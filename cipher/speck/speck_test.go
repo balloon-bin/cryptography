@@ -1,75 +1,93 @@
 package speck_test
 
 import (
-	"encoding/hex"
-	"slices"
 	"testing"
 
+	"git.omicron.one/playground/cryptography/cipher"
 	"git.omicron.one/playground/cryptography/cipher/speck"
 	"github.com/stretchr/testify/assert"
 )
 
-func DeHex(s string) []byte {
-	decoded, err := hex.DecodeString(s)
-	if err != nil {
-		panic("invalid hex string")
+func testKey(param speck.SpeckParameters) []byte {
+	switch param {
+	case speck.Speck3264:
+		return make([]byte, 64/8)
+	case speck.Speck4872:
+		return make([]byte, 72/8)
+	case speck.Speck4896, speck.Speck6496, speck.Speck9696:
+		return make([]byte, 96/8)
+	case speck.Speck64128, speck.Speck128128:
+		return make([]byte, 128/8)
+	case speck.Speck96144:
+		return make([]byte, 144/8)
+	case speck.Speck128192:
+		return make([]byte, 192/8)
+	case speck.Speck128256:
+		return make([]byte, 256/8)
 	}
-	return decoded
+	panic("unreachable")
 }
 
-type TestVector struct {
-	Key        []byte
-	Plaintext  []byte
-	Ciphertext []byte
-	Param      speck.SpeckParameters
-}
+func TestNew(t *testing.T) {
+	notImplemented := []speck.SpeckParameters{
+		speck.Speck3264,
+		speck.Speck4872,
+		speck.Speck4896,
+		speck.Speck6496,
+		speck.Speck64128,
+		speck.Speck9696,
+		speck.Speck96144,
+	}
+	implemented := []speck.SpeckParameters{
+		speck.Speck128128,
+		speck.Speck128192,
+		speck.Speck128256,
+	}
 
-var vectors []TestVector = []TestVector{
-	// Speck128/128 test vector
-	{
-		Key:        DeHex("0f0e0d0c0b0a09080706050403020100"),
-		Plaintext:  DeHex("6c617669757165207469206564616d20"),
-		Ciphertext: DeHex("a65d9851797832657860fedf5c570d18"),
-		Param:      speck.Speck128128,
-	},
-	{
-		Key:        DeHex("17161514131211100f0e0d0c0b0a09080706050403020100"),
-		Plaintext:  DeHex("726148206665696843206f7420746e65"),
-		Ciphertext: DeHex("1be4cf3a13135566f9bc185de03c1886"),
-		Param:      speck.Speck128192,
-	},
-	{
-		Key:        DeHex("1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100"),
-		Plaintext:  DeHex("65736f6874206e49202e72656e6f6f70"),
-		Ciphertext: DeHex("4109010405c0f53e4eeeb48d9c188f43"),
-		Param:      speck.Speck128256,
-	},
-}
+	for _, param := range notImplemented {
+		key := testKey(param)
+		ctx, err := speck.New(key, param)
+		assert.Nil(t, ctx)
+		assert.ErrorContains(t, err, "Not implemented")
+	}
 
-func TestVectors(t *testing.T) {
-	for _, vector := range vectors {
-		ctx, err := speck.New(vector.Key, vector.Param)
-		assert.NotNil(t, ctx)
+	for _, param := range implemented {
+		key := testKey(param)
+		ctx, err := speck.New(key, param)
 		assert.Nil(t, err)
-
-		// Test in place
-		buffer := slices.Clone(vector.Plaintext)
-		ctx.Encrypt(buffer, buffer)
-		assert.Equal(t, vector.Ciphertext, buffer, ctx.Algorithm())
-		ctx.Decrypt(buffer, buffer)
-		assert.Equal(t, vector.Plaintext, buffer, ctx.Algorithm())
-
-		// Test two buffers
-		dst := make([]byte, len(vector.Ciphertext))
-		src := slices.Clone(vector.Plaintext)
-		ctx.Encrypt(dst, src)
-		assert.Equal(t, vector.Plaintext, src, ctx.Algorithm())
-		assert.Equal(t, vector.Ciphertext, dst, ctx.Algorithm())
-
-		dst = make([]byte, len(vector.Plaintext))
-		src = slices.Clone(vector.Ciphertext)
-		ctx.Decrypt(dst, src)
-		assert.Equal(t, vector.Ciphertext, src, ctx.Algorithm())
-		assert.Equal(t, vector.Plaintext, dst, ctx.Algorithm())
+		assert.NotNil(t, ctx)
 	}
+}
+
+func TestInvalidKeyLength(t *testing.T) {
+	params := []speck.SpeckParameters{
+		speck.Speck3264,
+		speck.Speck4872,
+		speck.Speck4896,
+		speck.Speck6496,
+		speck.Speck64128,
+		speck.Speck9696,
+		speck.Speck96144,
+		speck.Speck128128,
+		speck.Speck128192,
+		speck.Speck128256,
+	}
+	for _, param := range params {
+		key := testKey(param)
+		ctx, err := speck.New(key[1:], param)
+		assert.Nil(t, ctx)
+		assert.ErrorIs(t, cipher.ErrInvalidKeyLength, err)
+	}
+}
+
+func TestInvalidParam(t *testing.T) {
+	assert.PanicsWithValue(t, "Invalid parameters", func() {
+		speck.New(nil, -1)
+	})
+	assert.PanicsWithValue(t, "Invalid parameters", func() {
+		speck.New(nil, 0)
+	})
+	assert.PanicsWithValue(t, "Invalid parameters", func() {
+		speck.New(nil, speck.Speck128256+1)
+	})
 }

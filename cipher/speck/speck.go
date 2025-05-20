@@ -41,7 +41,7 @@ var keySizes = []int{
 // New creates a new speck block cipher context.
 // Returns the created block cipher or an error.
 func New(key []byte, param SpeckParameters) (cipher.Block, error) {
-	if param == 0 || int(param) > len(keySizes) {
+	if param <= 0 || int(param) >= len(keySizes) {
 		panic("Invalid parameters")
 	}
 	keySize := keySizes[param]

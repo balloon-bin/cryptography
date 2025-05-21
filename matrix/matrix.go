@@ -54,6 +54,33 @@ func Create[T Number](rows, cols int) *Matrix[T] {
 	}
 }
 
+// Creates a new matrix from a given 2D slice of values. The first index of the
+// slice denotes the rows and the second index denotes the columns. Returns the
+// newly created matrix.
+//
+// Panics with ErrIncompatibleDataDimensions if any of the lengths are 0 or if
+// not all rows have the same length.
+func CreateFromSlice[T Number](values [][]T) *Matrix[T] {
+	rows := len(values)
+	if rows == 0 {
+		panic(ErrIncompatibleDataDimensions)
+	}
+	cols := len(values[0])
+	if cols == 0 {
+		panic(ErrIncompatibleDataDimensions)
+	}
+
+	m := Create[T](rows, cols)
+	for i := range rows {
+		if len(values[i]) != cols {
+			panic(ErrIncompatibleDataDimensions)
+		}
+		copy(m.values[i], values[i])
+	}
+
+	return m
+}
+
 // Creates a new matrix of a given size and sets the values from the given
 // slice. The values are used to fill the matrix left to right and top to
 // bottom. Returns the newly created matrix.

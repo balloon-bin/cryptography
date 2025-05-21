@@ -55,6 +55,41 @@ func TestCreate(t *testing.T) {
 	})
 }
 
+func TestCreateFromSlice(t *testing.T) {
+	m := matrix.CreateFromSlice([][]int{
+		{1, 2, 3},
+		{4, 5, 6},
+	})
+	assert.NotNil(t, m)
+
+	assert.Equal(t, 2, m.Rows())
+	assert.Equal(t, 3, m.Cols())
+
+	assert.Equal(t, 1, m.Get(0, 0))
+	assert.Equal(t, 2, m.Get(0, 1))
+	assert.Equal(t, 3, m.Get(0, 2))
+	assert.Equal(t, 4, m.Get(1, 0))
+	assert.Equal(t, 5, m.Get(1, 1))
+	assert.Equal(t, 6, m.Get(1, 2))
+
+	assert.PanicsWithValue(t, matrix.ErrInvalidDimensions, func() {
+		matrix.CreateFromSlice([][]int{})
+	})
+
+	assert.PanicsWithValue(t, matrix.ErrInvalidDimensions, func() {
+		matrix.CreateFromSlice([][]int{
+			{},
+		})
+	})
+
+	assert.PanicsWithValue(t, matrix.ErrIncompatibleDataDimensions, func() {
+		matrix.CreateFromSlice([][]int{
+			{1, 2, 3},
+			{4, 5},
+		})
+	})
+}
+
 func TestCreateFromFlatSlice(t *testing.T) {
 	m := matrix.CreateFromFlatSlice(2, 3, []int{1, 2, 3, 4, 5, 6})
 	assert.NotNil(t, m)

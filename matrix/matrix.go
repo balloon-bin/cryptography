@@ -4,6 +4,7 @@
 package matrix
 
 import (
+	"encoding/json"
 	"errors"
 
 	"golang.org/x/exp/constraints"
@@ -105,6 +106,17 @@ func CreateFromFlatSlice[T Number](rows, cols int, values []T) *Matrix[T] {
 		}
 	}
 	return m
+}
+
+// CreateFromJSON creates a new matrix from JSON data representing a
+// two-dimensional array. Returns an error if the JSON is invalid, the array is
+// empty, or the inner arrays have inconsistent lengths.
+func CreateFromJSON[T Number](data []byte) (*Matrix[T], error) {
+	m := &Matrix[T]{}
+	if err := m.UnmarshalJSON(data); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // Convert will take a matrix of type T and convert it into a matrix of type U
@@ -319,4 +331,40 @@ func (m *Matrix[T]) Fill(value T) *Matrix[T] {
 		}
 	}
 	return m
+}
+
+// UnmarshalJSON implements json.Unmarshaler for Matrix, creating a matrix from
+// a JSON two-dimensional array.
+func (m *Matrix[T]) UnmarshalJSON(data []byte) error {
+	var values [][]T
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+
+	rows := len(values)
+	if rows == 0 {
+		return ErrInvalidDimensions
+	}
+	cols := len(values[0])
+	if cols == 0 {
+		return ErrInvalidDimensions
+	}
+
+	for i := range rows {
+		if len(values[i]) != cols {
+			return ErrIncompatibleDataDimensions
+		}
+	}
+
+	m.rows = rows
+	m.cols = cols
+	m.values = values
+
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler for Matrix, serializing the matrix as
+// a JSON two-dimensional array.
+func (m *Matrix[T]) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.values)
 }

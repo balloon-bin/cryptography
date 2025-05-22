@@ -1,6 +1,7 @@
 package matrix_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"git.omicron.one/playground/cryptography/matrix"
@@ -127,6 +128,46 @@ func TestCreateFromFlatSlice(t *testing.T) {
 	assert.PanicsWithValue(t, matrix.ErrInvalidDimensions, func() {
 		matrix.CreateFromFlatSlice(-1, -1, []int{1})
 	})
+}
+
+func TestCreateFromJSON(t *testing.T) {
+	// data json
+	data := []byte(`[[1, 2, 3], [4, 5, 6]]`)
+	m, err := matrix.CreateFromJSON[int](data)
+	assert.Nil(t, err)
+	assert.NotNil(t, m)
+	assert.Equal(t, 2, m.Rows())
+	assert.Equal(t, 3, m.Cols())
+	assert.Equal(t, 1, m.Get(0, 0))
+	assert.Equal(t, 2, m.Get(0, 1))
+	assert.Equal(t, 3, m.Get(0, 2))
+	assert.Equal(t, 4, m.Get(1, 0))
+	assert.Equal(t, 5, m.Get(1, 1))
+	assert.Equal(t, 6, m.Get(1, 2))
+
+	// invalid json
+	data = []byte(`[[1, 2, 3], [4, 5,`)
+	m, err = matrix.CreateFromJSON[int](data)
+	assert.NotNil(t, err)
+	assert.Nil(t, m)
+
+	// empty matrix
+	data = []byte(`[]`)
+	m, err = matrix.CreateFromJSON[int](data)
+	assert.ErrorIs(t, err, matrix.ErrInvalidDimensions)
+	assert.Nil(t, m)
+
+	// empty rows
+	data = []byte(`[[]]`)
+	m, err = matrix.CreateFromJSON[int](data)
+	assert.ErrorIs(t, err, matrix.ErrInvalidDimensions)
+	assert.Nil(t, m)
+
+	// mixed row length
+	data = []byte(`[[1, 2, 3], [4, 5]]`)
+	m, err = matrix.CreateFromJSON[int](data)
+	assert.ErrorIs(t, err, matrix.ErrIncompatibleDataDimensions)
+	assert.Nil(t, m)
 }
 
 func TestSum(t *testing.T) {
@@ -527,4 +568,88 @@ func TestMatrix_Fill(t *testing.T) {
 	assert.Equal(t, 3, a.Get(1, 0))
 	assert.Equal(t, 3, a.Get(1, 1))
 	assert.Equal(t, 3, a.Get(1, 2))
+}
+
+func TestMatrix_UnmarshalJSON(t *testing.T) {
+	// int matrix
+	data := []byte(`[[1,2,3],[4,5,6]]`)
+	var m *matrix.Matrix[int]
+	err := json.Unmarshal(data, &m)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 2, m.Rows())
+	assert.Equal(t, 3, m.Cols())
+	assert.Equal(t, 1, m.Get(0, 0))
+	assert.Equal(t, 2, m.Get(0, 1))
+	assert.Equal(t, 3, m.Get(0, 2))
+	assert.Equal(t, 4, m.Get(1, 0))
+	assert.Equal(t, 5, m.Get(1, 1))
+	assert.Equal(t, 6, m.Get(1, 2))
+
+	// float matrix
+	data = []byte(`[[1.5,2.5],[3.5,4.5]]`)
+	var mf *matrix.Matrix[float64]
+	err = json.Unmarshal(data, &mf)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 2, mf.Rows())
+	assert.Equal(t, 2, mf.Cols())
+	assert.Equal(t, 1.5, mf.Get(0, 0))
+	assert.Equal(t, 2.5, mf.Get(0, 1))
+	assert.Equal(t, 3.5, mf.Get(1, 0))
+	assert.Equal(t, 4.5, mf.Get(1, 1))
+
+	// via json.Unmarshal
+	matrices := []byte(`[[[1,2],[3,4]],[[5,6,7]]]`)
+	var ms []*matrix.Matrix[int]
+	err = json.Unmarshal(matrices, &ms)
+	assert.Nil(t, err)
+	assert.Len(t, ms, 2)
+	assert.Equal(t, 2, ms[0].Get(0, 1))
+	assert.Equal(t, 7, ms[1].Get(0, 2))
+
+	// invalid JSON
+	err = m.UnmarshalJSON([]byte(`invalid`))
+	assert.NotNil(t, err)
+
+	// empty array
+	err = m.UnmarshalJSON([]byte(`[]`))
+	assert.ErrorIs(t, err, matrix.ErrInvalidDimensions)
+
+	// empty inner array
+	err = m.UnmarshalJSON([]byte(`[[]]`))
+	assert.ErrorIs(t, err, matrix.ErrInvalidDimensions)
+
+	// inconsistent lengths
+	err = m.UnmarshalJSON([]byte(`[[1,2],[3]]`))
+	assert.ErrorIs(t, err, matrix.ErrIncompatibleDataDimensions)
+}
+
+func TestMatrix_MarshallJSON(t *testing.T) {
+	// int matrix
+	m := matrix.CreateFromSlice([][]int{{1, 2, 3}, {4, 5, 6}})
+	data, err := m.MarshalJSON()
+	assert.Nil(t, err)
+	assert.NotNil(t, data)
+
+	expected := `[[1,2,3],[4,5,6]]`
+	assert.Equal(t, expected, string(data))
+
+	// float matrix
+	mf := matrix.CreateFromSlice([][]float64{{1.5, 2.5}, {3.5, 4.5}})
+	data, err = mf.MarshalJSON()
+	assert.Nil(t, err)
+	assert.NotNil(t, data)
+	expectedFloat := `[[1.5,2.5],[3.5,4.5]]`
+	assert.Equal(t, expectedFloat, string(data))
+
+	// slice of matrices via json.Marshal
+	m1 := matrix.CreateFromSlice([][]int{{1, 2}, {3, 4}})
+	m2 := matrix.CreateFromSlice([][]int{{5, 6, 7}})
+	matrices := []*matrix.Matrix[int]{m1, m2}
+
+	data, err = json.Marshal(matrices)
+	assert.Nil(t, err)
+	expected = `[[[1,2],[3,4]],[[5,6,7]]]`
+	assert.Equal(t, expected, string(data))
 }
